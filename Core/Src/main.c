@@ -10,61 +10,79 @@
 #include "main.h"
 #include "gpio.h"
 #include "i2c.h"
+#include "usart.h"
 #include "bno085_stm32.h"
+
+#include <stdio.h>
+#include <string.h>
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN 0 */
+extern UART_HandleTypeDef huart2;
 /* USER CODE END 0 */
 
 int main(void)
 {
-    /* Reset of all peripherals, Initializes the Flash interface and the Systick */
+    /* Reset peripherals, init Flash & SysTick */
     HAL_Init();
 
-    /* Configure the system clock */
+    /* Configure system clock */
     SystemClock_Config();
 
-    /* Initialize all configured peripherals */
+    /* Initialize peripherals */
     MX_GPIO_Init();
     MX_I2C1_Init();
+    MX_USART2_UART_Init();
 
     /* USER CODE BEGIN 2 */
+
+    /* UART sanity message */
+    const char startMsg[] = "\r\nSTM32 + BNO085 booted\r\n";
+    HAL_UART_Transmit(&huart2,
+                      (uint8_t*)startMsg,
+                      sizeof(startMsg) - 1,
+                      HAL_MAX_DELAY);
+
+    /* Initialize BNO085 + SH2 */
     BNO085_Init();
+
     /* USER CODE END 2 */
 
     /* Infinite loop */
-    /* USER CODE BEGIN WHILE */
     while (1)
     {
-        BNO085_Update();   // poll sensor / process events
+        /* Service SH2 / BNO085 */
+        BNO085_Update();
+
+        /* Small idle delay to avoid 100% CPU load */
+        HAL_Delay(1);
     }
-    /* USER CODE END WHILE */
 }
 
 /**
   * @brief System Clock Configuration
-  * @retval None
   */
 void SystemClock_Config(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-    /* Initializes the CPU, AHB and APB busses clocks */
+    /* Use HSE (8 MHz) + PLL = 72 MHz */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     RCC_OscInitStruct.HSEState = RCC_HSE_ON;
     RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
     {
         Error_Handler();
     }
 
-    /* Initializes the CPU, AHB and APB busses clocks */
+    /* Configure clocks */
     RCC_ClkInitStruct.ClockType =
         RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
         RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
@@ -81,14 +99,13 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
+  * @brief Error Handler
   */
 void Error_Handler(void)
 {
     __disable_irq();
     while (1)
     {
-        /* Hang here – add LED blink or debug print if you want */
+        /* Fatal error: stay here */
     }
 }

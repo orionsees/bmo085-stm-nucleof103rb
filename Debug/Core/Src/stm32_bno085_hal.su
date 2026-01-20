@@ -1,6 +1,8 @@
-../Core/Src/stm32_bno085_hal.c:23:6:HAL_SYSTICK_Callback	4	static
+../Core/Src/stm32_bno085_hal.c:22:6:HAL_SYSTICK_Callback	4	static
 ../Core/Src/stm32_bno085_hal.c:27:17:stm32_getTimeUs	16	static
-../Core/Src/stm32_bno085_hal.c:31:12:stm32_i2c_open	32	static
-../Core/Src/stm32_bno085_hal.c:46:13:stm32_i2c_close	16	static
-../Core/Src/stm32_bno085_hal.c:50:12:stm32_i2c_read	184	static
-../Core/Src/stm32_bno085_hal.c:102:12:stm32_i2c_write	32	static
+../Core/Src/stm32_bno085_hal.c:35:12:stm32_i2c_open	16	static
+../Core/Src/stm32_bno085_hal.c:48:13:stm32_i2c_close	16	static
+../Core/Src/stm32_bno085_hal.c:53:12:stm32_i2c_write	32	static
+../Core/Src/stm32_bno085_hal.c:67:12:stm32_i2c_read	40	static
+../Core/Src/stm32_bno085_hal.c:103:5:sh2_hal_waitForInterrupt	8	static
+../Core/Src/stm32_bno085_hal.c:112:6:sh2_hal_interruptEnable	16	static

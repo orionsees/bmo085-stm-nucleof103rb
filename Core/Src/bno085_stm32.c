@@ -1,77 +1,149 @@
 #include "sh2.h"
 #include "sh2_SensorValue.h"
-#include "stm32f1xx_hal.h"
 #include "sh2_err.h"
+#include "stm32f1xx_hal.h"
+#include "gpio.h"
+
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+
+/* GPIO mapping */
+#define BNO085_INT_PORT GPIOA
+#define BNO085_INT_PIN  GPIO_PIN_0
+
+#define BNO085_RST_PORT GPIOA
+#define BNO085_RST_PIN  GPIO_PIN_1
 
 extern sh2_Hal_t stm32_hal;
+extern UART_HandleTypeDef huart2;
 
-// Callback for sensor events
-static void sensorHandler(void *cookie, sh2_SensorEvent_t *pEvent) {
+/* ================= Euler struct ================= */
+
+typedef struct {
+    float yaw;
+    float pitch;
+    float roll;
+} euler_t;
+
+static euler_t ypr;
+
+/* ================= Quaternion → Euler ================= */
+
+static void quaternionToEuler(float qr, float qi, float qj, float qk, euler_t *ypr)
+{
+    float sqr = qr * qr;
+    float sqi = qi * qi;
+    float sqj = qj * qj;
+    float sqk = qk * qk;
+
+    ypr->yaw   = atan2f(2.0f * (qi * qj + qk * qr),
+                        (sqi - sqj - sqk + sqr));
+    ypr->pitch = asinf(-2.0f * (qi * qk - qj * qr) /
+                       (sqi + sqj + sqk + sqr));
+    ypr->roll  = atan2f(2.0f * (qj * qk + qi * qr),
+                        (-sqi - sqj + sqk + sqr));
+
+    /* radians → degrees */
+    ypr->yaw   *= 57.2957795f;
+    ypr->pitch *= 57.2957795f;
+    ypr->roll  *= 57.2957795f;
+}
+
+/* ================= Sensor callback ================= */
+
+static void sensorHandler(void *cookie, sh2_SensorEvent_t *event)
+{
     sh2_SensorValue_t value;
+    char string2[128];
 
-    if (sh2_decodeSensorEvent(&value, pEvent) == SH2_OK) {
-        // Process sensor data based on sensor ID
-        switch (value.sensorId) {
-            case SH2_ROTATION_VECTOR:
-                // Handle rotation vector data
-                // value.un.rotationVector.i, .j, .k, .real
-                break;
-            case SH2_ACCELEROMETER:
-                // Handle accelerometer data
-                // value.un.accelerometer.x, .y, .z
-                break;
-            // Add other sensors as needed
-        }
+    if (sh2_decodeSensorEvent(&value, event) != SH2_OK)
+        return;
+
+    if (value.sensorId == SH2_ARVR_STABILIZED_RV)
+    {
+        quaternionToEuler(
+            value.un.arvrStabilizedRV.real,
+            value.un.arvrStabilizedRV.i,
+            value.un.arvrStabilizedRV.j,
+            value.un.arvrStabilizedRV.k,
+            &ypr
+        );
+
+        sprintf(string2,"\r\nYPR: %.2f\t%.2f\t%.2f",ypr.yaw, ypr.pitch, ypr.roll);
+
+        HAL_UART_Transmit(&huart2,
+                          (uint8_t*)string2,
+                          strlen(string2),
+                          HAL_MAX_DELAY);
     }
 }
 
-// Callback for async events (like reset)
-static void eventHandler(void *cookie, sh2_AsyncEvent_t *pEvent) {
-    if (pEvent->eventId == SH2_RESET) {
-        // Sensor has reset, reconfigure if needed
+/* ================= Async event callback ================= */
+
+static void eventHandler(void *cookie, sh2_AsyncEvent_t *event)
+{
+    char string2[64];
+
+    if (event->eventId == SH2_RESET)
+    {
+        sprintf(string2, "\r\nSH2 RESET");
+        HAL_UART_Transmit(&huart2,
+                          (uint8_t*)string2,
+                          strlen(string2),
+                          HAL_MAX_DELAY);
+
+        /* Re-enable report after reset */
+        sh2_SensorConfig_t cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.reportInterval_us = 5000;   // 200 Hz-ish
+
+        sh2_setSensorConfig(SH2_ARVR_STABILIZED_RV, &cfg);
     }
 }
 
-int BNO085_Init(void) {
-    // Open SH2 interface
-    int status = sh2_open(&stm32_hal, eventHandler, NULL);
-    if (status != SH2_OK) {
+/* ================= Init ================= */
+
+int BNO085_Init(void)
+{
+    char string2[64];
+
+    /* Hardware reset */
+    HAL_GPIO_WritePin(BNO085_RST_PORT, BNO085_RST_PIN, GPIO_PIN_RESET);
+    HAL_Delay(10);
+    HAL_GPIO_WritePin(BNO085_RST_PORT, BNO085_RST_PIN, GPIO_PIN_SET);
+    HAL_Delay(100);
+
+    sprintf(string2, "\r\nBNO085 Init");
+    HAL_UART_Transmit(&huart2,
+                      (uint8_t*)string2,
+                      strlen(string2),
+                      HAL_MAX_DELAY);
+
+    if (sh2_open(&stm32_hal, eventHandler, NULL) != SH2_OK)
         return -1;
-    }
 
-    // Register sensor callback
     sh2_setSensorCallback(sensorHandler, NULL);
 
-    // Get product IDs
-    sh2_ProductIds_t prodIds;
-    status = sh2_getProdIds(&prodIds);
-    if (status != SH2_OK) {
-        return -2;
-    }
+    /* Enable SAME report as Arduino */
+    sh2_SensorConfig_t cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.reportInterval_us = 5000;   // same as Arduino example
+
+    sh2_setSensorConfig(SH2_ARVR_STABILIZED_RV, &cfg);
+
+    sprintf(string2, "\r\nARVR RV enabled");
+    HAL_UART_Transmit(&huart2,
+                      (uint8_t*)string2,
+                      strlen(string2),
+                      HAL_MAX_DELAY);
 
     return 0;
 }
 
-int BNO085_EnableRotationVector(uint32_t interval_us) {
-    sh2_SensorConfig_t config;
-
-    config.changeSensitivityEnabled = false;
-    config.wakeupEnabled = false;
-    config.changeSensitivityRelative = false;
-    config.alwaysOnEnabled = false;
-    config.changeSensitivity = 0;
-    config.reportInterval_us = interval_us;
-    config.batchInterval_us = 0;
-    config.sensorSpecific = 0;
-
-    return sh2_setSensorConfig(SH2_ROTATION_VECTOR, &config);
-}
-
-void BNO085_Service(void) {
-    sh2_service();
-}
+/* ================= Service ================= */
 
 void BNO085_Update(void)
 {
-    sh2_service();   // processes incoming SH2/SHTP packets
+    sh2_service();
 }

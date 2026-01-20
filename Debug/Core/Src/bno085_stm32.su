@@ -1,6 +1,5 @@
-../Core/Src/bno085_stm32.c:9:13:sensorHandler	64	static
-../Core/Src/bno085_stm32.c:29:13:eventHandler	16	static
-../Core/Src/bno085_stm32.c:35:5:BNO085_Init	96	static
-../Core/Src/bno085_stm32.c:55:5:BNO085_EnableRotationVector	40	static
-../Core/Src/bno085_stm32.c:70:6:BNO085_Service	8	static
-../Core/Src/bno085_stm32.c:74:6:BNO085_Update	8	static
+../Core/Src/bno085_stm32.c:33:13:quaternionToEuler	48	static
+../Core/Src/bno085_stm32.c:55:13:sensorHandler	224	static
+../Core/Src/bno085_stm32.c:84:13:eventHandler	104	static
+../Core/Src/bno085_stm32.c:107:5:BNO085_Init	96	static
+../Core/Src/bno085_stm32.c:146:6:BNO085_Update	8	static

@@ -61,7 +61,7 @@ main-build: bno085.elf secondary-outputs
 
 # Tool invocations
 bno085.elf bno085.map: $(OBJS) $(USER_OBJS) /home/ubunt2/low_level/bno085/STM32F103RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "bno085.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"/home/ubunt2/low_level/bno085/STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="bno085.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "bno085.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"/home/ubunt2/low_level/bno085/STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="bno085.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
