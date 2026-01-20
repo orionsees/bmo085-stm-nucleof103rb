@@ -1,6 +1,7 @@
 #include "sh2.h"
 #include "sh2_SensorValue.h"
 #include "stm32f1xx_hal.h"
+#include "sh2_err.h"
 
 extern sh2_Hal_t stm32_hal;
 
@@ -68,4 +69,9 @@ int BNO085_EnableRotationVector(uint32_t interval_us) {
 
 void BNO085_Service(void) {
     sh2_service();
+}
+
+void BNO085_Update(void)
+{
+    sh2_service();   // processes incoming SH2/SHTP packets
 }
